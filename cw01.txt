@@ -1,0 +1,53 @@
+# Ireneusz Kopiec 169256
+
+polecenie 2
+- hasło zmienione
+
+polecenie 3
+CREATE TABLE regions (region_id int PRIMARY KEY NOT NULL);
+
+CREATE TABLE countries (country_id int PRIMARY KEY NOT NULL, country_name VARCHAR(50), 
+                        region_id int, FOREIGN KEY (region_id) REFERENCES regions(region_id));
+
+
+CREATE TABLE locations (location_id int PRIMARY KEY NOT NULL, 
+street_address VARCHAR(255), postal_code VARCHAR(6),
+city VARCHAR(255), state_province VARCHAR(100), country_id int);
+
+ALTER TABLE locations ADD CONSTRAINT fk_country FOREIGN KEY (country_id)
+REFERENCES countries(country_id);
+
+CREATE TABLE jobs (job_id int PRIMARY KEY NOT NULL, job_title VARCHAR(255),
+min_salary float, max_salary float);
+
+CREATE TABLE departaments (departament_id int PRIMARY KEY NOT NULL,
+departament_name VARCHAR(255), manager_id int, location_id int,
+FOREIGN KEY (location_id) REFERENCES locations(location_id));
+
+CREATE TABLE employees (employee_id int PRIMARY KEY NOT NULL,
+first_name VARCHAR(150), last_name VARCHAR(150), email VARCHAR(255),
+phone_number varchar(12), hire_date DATE, job_id int, 
+salary float, commission_pct float, manager_id int, departament_id int,
+FOREIGN KEY (job_id) REFERENCES jobs(job_id), 
+FOREIGN KEY (departament_id) REFERENCES departaments(departament_id),
+FOREIGN KEY (manager_id) REFERENCES employees(employee_id));
+
+
+ALTER TABLE employees ADD UNIQUE(manager_id);
+
+ALTER TABLE departaments ADD FOREIGN KEY (manager_id)
+REFERENCES employees(manager_id);
+
+
+ALTER TABLE regions ADD region_name VARCHAR(255);
+
+CREATE TABLE job_history (employee_id int NOT NULL, 
+start_date DATE NOT NULL, PRIMARY KEY (employee_id, start_date), 
+end_date DATE, job_id int, departament_id int, 
+FOREIGN KEY (employee_id) REFERENCES employees(employee_id),
+FOREIGN KEY (job_id) REFERENCES jobs(job_id),
+FOREIGN KEY (departament_id) REFERENCES departaments(departament_id));
+
+
+
+
