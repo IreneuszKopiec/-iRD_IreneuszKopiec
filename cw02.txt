@@ -23,10 +23,67 @@ ORDER BY 1 DESC, 2 ASC;
 
   
 4.
+SELECT first_name, last_name,
+ROUND(MONTHS_BETWEEN(SYSDATE, hire_date)) 
+as liczba_miesiecy,
+CASE
+WHEN ROUND(MONTHS_BETWEEN(SYSDATE, hire_date)) <=150
+THEN salary * 0.10
+WHEN ROUND(MONTHS_BETWEEN(SYSDATE, hire_date)) <=200
+THEN salary * 0.20
+ELSE salary * 0.30
+END as wysokosc_dodatku
+FROM employees ORDER BY liczba_miesiecy;
+
+
+
 5.
+SELECT department_id, SUM(salary) as suma_zarobkow,
+ROUND(AVG(salary)) as srednia_zarobkow
+FROM employees GROUP BY department_id 
+HAVING MIN(salary) > 5000;
+
+
+
 6.
+SELECT e.last_name, e.department_id, d.department_name,
+e.job_id FROM employees e JOIN departments d 
+ON e.department_id = d.department_id JOIN locations l
+ON d.location_id = l.location_id
+WHERE l.city = 'Toronto';
+
+
 7.
+SELECT e1.first_name, e1.last_name, 
+e2.first_name || ' ' || e2.last_name as coworker
+FROM employees e1 JOIN employees e2 
+ON e1.department_id = e2.department_id
+WHERE e1.first_name = 'Jennifer' 
+and e1.employee_id <> e2.employee_id;
+
+
 8.
+SELECT d.department_id, d.department_name 
+FROM departments d LEFT JOIN employees e 
+ON d.department_id = e.department_id
+WHERE e.employee_id IS NULL;
+
+
 9.
+SELECT e.first_name, e.last_name, e.job_id,
+d.department_id, e.salary, jg.grade 
+FROM employees e JOIN departments d 
+ON e.department_id = d.department_id JOIN job_grades jg
+ON e.salary BETWEEN jg.min_salary and jg.max_salary;
+
 10.
+SELECT first_name, last_name, salary FROM employees
+WHERE salary > (SELECT AVG(salary) FROM employees)
+ORDER BY salary DESC;
+
+
 11.
+SELECT employee_id, first_name, last_name 
+FROM employees WHERE department_id IN 
+(SELECT department_id FROM employees 
+WHERE last_name LIKE '%u%');
