@@ -1,0 +1,54 @@
+1.
+SELECT 
+DENSE_RANK() OVER (ORDER BY salary DESC) AS lp,
+first_name, last_name, salary
+FROM employees;
+
+2.
+SELECT first_name, last_name, 
+SUM(salary) OVER () as total_salary
+FROM employees;
+
+3.
+CREATE TABLE sales AS SELECT * FROM hr.sales;
+CREATE TABLE products AS SELECT * FROM hr.products;
+
+4.
+SELECT 
+last_name, product_name, sprzedaz, 
+RANK() OVER (ORDER BY sprzedaz DESC) as ranking
+FROM
+(
+SELECT e.last_name, p.product_name,
+SUM(s.quantity * s.price)
+OVER (PARTITION BY e.employee_id) as sprzedaz
+FROM employees e JOIN sales s
+ON e.employee_id = s.employee_id JOIN products p
+ON p.product_id = s.product_id 
+);
+
+
+5.
+SELECT e.last_name, p.product_name, s.price, 
+COUNT(*) 
+OVER (PARTITION BY p.product_id, TRUNC(s.sale_date)) as dziennie_t,
+SUM(s.price * s.quantity) 
+OVER (PARTITION BY p.product_id, TRUNC(s.sale_date)) as dziennie_sum,
+LAG(s.price) 
+OVER (PARTITION BY p.product_id ORDER BY s.sale_date) as prev_price,
+LEAD(s.price) 
+OVER (PARTITION BY p.product_id ORDER BY s.sale_date) as next_price
+FROM employees e JOIN sales s
+ON e.employee_id = s.employee_id JOIN products p
+ON p.product_id = s.product_id;
+
+
+
+6.
+SELECT p.product_name, s.price,
+SUM(s.price * s.quantity)
+OVER (PARTITION BY p.product_id, TRUNC(s.sale_date, 'MM')) as month_total,
+SUM(s.price * s.quantity) OVER
+(PARTITION BY p.product_id, TRUNC(s.sale_date, 'MM') ORDER BY s.sale_date) as total
+FROM  sales s JOIN products p
+ON p.product_id = s.product_id;
