@@ -52,3 +52,64 @@ SUM(s.price * s.quantity) OVER
 (PARTITION BY p.product_id, TRUNC(s.sale_date, 'MM') ORDER BY s.sale_date) as total
 FROM  sales s JOIN products p
 ON p.product_id = s.product_id;
+
+
+
+7.
+SELECT p.product_name, p.product_category, s.sale_date, s.price,
+LAG(s.price) 
+OVER (PARTITION BY p.product_id, TO_CHAR(s.sale_date, 'MM-DD')
+ORDER BY EXTRACT(YEAR FROM s.sale_date)) AS prev_year_price,
+s.price - LAG(s.price)
+OVER (PARTITION BY p.product_id, TO_CHAR(s.sale_date, 'MM-DD')
+ORDER BY EXTRACT(YEAR FROM s.sale_date)) AS roznica
+FROM  sales s JOIN products p
+ON p.product_id = s.product_id;
+
+
+
+8. 
+SELECT  p.product_category, p.product_name, s.price,
+MIN(s.price) OVER (PARTITION BY p.product_category) AS min_price,
+MAX(s.price) OVER (PARTITION BY p.product_category) AS max_price,
+MAX(s.price) OVER (PARTITION BY p.product_category) 
+- MIN(s.price) OVER (PARTITION BY p.product_category) AS roznica
+FROM  sales s JOIN products p
+ON p.product_id = s.product_id;
+
+
+9.
+SELECT p.product_name,s.sale_date, s.price,
+AVG(s.price) 
+OVER (PARTITION BY p.product_id ORDER BY s.sale_date
+ROWS BETWEEN 1 PRECEDING AND 1 FOLLOWING) AS avg
+FROM  sales s JOIN products p
+ON p.product_id = s.product_id;
+
+
+10.
+SELECT p.product_name, p.product_category, s.price,
+RANK() OVER (PARTITION BY p.product_category ORDER BY s.price DESC) as rank,
+ROW_NUMBER() 
+OVER (PARTITION BY p.product_category ORDER BY s.price DESC) as rows_number,
+DENSE_RANK() 
+OVER (PARTITION BY p.product_category ORDER BY s.price DESC) as rank_dense
+FROM  sales s JOIN products p
+ON p.product_id = s.product_id;
+
+
+11.
+SELECT e.last_name, p.product_name, s.sale_date,
+SUM(s.price * s.quantity) 
+OVER (PARTITION BY e.employee_id ORDER BY s.sale_date) as sales,
+RANK() OVER (ORDER BY (s.price * s.quantity) DESC) as global 
+FROM sales s JOIN products p
+ON p.product_id = s.product_id JOIN employees e 
+ON e.employee_id = s.employee_id;
+
+
+12.
+SELECT DISTINCT e.first_name, e.last_name, j.job_title
+FROM sales s JOIN employees e
+ON e.employee_id = s.employee_id JOIN jobs j
+ON j.job_id = e.job_id;
