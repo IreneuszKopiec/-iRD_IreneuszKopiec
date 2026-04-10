@@ -1,0 +1,71 @@
+1.
+DECLARE 
+  numer_max departments.department_id%TYPE;
+  nowa_nazwa departments.department_name%TYPE := 'EDUCATION';
+BEGIN
+  SELECT MAX(department_id) INTO numer_max FROM departments;
+  DBMS_OUTPUT.PUT_LINE('max: ' || numer_max);
+  INSERT INTO departments (department_id, department_name)
+  VALUES (numer_max + 10, nowa_nazwa);
+END;
+/
+
+
+
+2.
+DECLARE 
+  numer_max departments.department_id%TYPE;
+  nowa_nazwa departments.department_name%TYPE := 'EDUCATION';
+BEGIN
+  SELECT MAX(department_id) INTO numer_max FROM departments;
+  DBMS_OUTPUT.PUT_LINE('max: ' || numer_max);
+  INSERT INTO departments (department_id, department_name)
+  VALUES (numer_max + 10, nowa_nazwa);
+  UPDATE departments SET location_id = 3000 
+  WHERE department_id = numer_max;
+END;
+/
+
+3.
+CREATE TABLE liczby (wartosc varchar(10));
+
+BEGIN
+  FOR i IN 1..10 LOOP
+    IF NOT (i IN (4,6)) THEN
+      INSERT INTO liczby VALUES (TO_CHAR(i));
+    END IF;
+  END LOOP;
+END;
+/
+
+
+
+4.
+DECLARE 
+  country countries%ROWTYPE;
+BEGIN
+  SELECT * INTO country FROM countries WHERE country_id = 'CA';
+
+  DBMS_OUTPUT.PUT_LINE('nazwa: ' || country.country_name);
+  DBMS_OUTPUT.PUT_LINE('region: ' || country.region_id);
+END;
+/
+
+
+5.
+DECLARE 
+  CURSOR c IS 
+    SELECT last_name, salary FROM employees WHERE department_id = 50;
+BEGIN
+  FOR x IN c LOOP
+    IF x.salary>3100 THEN
+      DBMS_OUTPUT.PUT_LINE(x.last_name   || ' - nie dawac podwyzki');
+    ELSE
+      DBMS_OUTPUT.PUT_LINE(x.last_name   || ' - dac podwyzke');
+    END IF;
+  END LOOP;
+END;
+/
+
+
+  
