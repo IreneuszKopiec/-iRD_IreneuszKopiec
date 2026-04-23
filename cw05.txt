@@ -69,3 +69,166 @@ END;
 
 
   
+6.
+CREATE OR REPLACE PROCEDURE zad6(
+min_salary NUMBER,
+max_salary NUMBER,
+letter VARCHAR
+)
+IS
+BEGIN
+    FOR rec IN (
+        SELECT first_name, last_name, salary
+        FROM employees
+        WHERE salary BETWEEN min_salary AND max_salary
+        AND LOWER(first_name) LIKE LOWER(letter) || '%'
+    )
+    LOOP
+        DBMS_OUTPUT.PUT_LINE(rec.first_name || ' ' || rec.last_name || ' - ' || rec.salary);
+    END LOOP;
+END;
+/
+   
+   
+EXEC zad6(1000, 5000, 'a');
+EXEC zad6(5000, 20000, 'u');
+
+
+
+9.
+a) CREATE OR REPLACE PROCEDURE add_job(
+p_job_id VARCHAR,
+p_job_title VARCHAR
+)
+IS
+BEGIN
+INSERT INTO jobs(job_id, job_title) 
+VALUES (p_job_id, p_job_title);
+
+EXCEPTION
+  WHEN OTHERS THEN
+     DBMS_OUTPUT.PUT_LINE('Błąd przy dodawaniu joba: ' || SQLERRM);
+END;
+/
+
+EXEC add_job(100, 'test');
+
+
+b)CREATE OR REPLACE PROCEDURE update_job(
+p_job_id VARCHAR,
+p_job_title VARCHAR
+)
+IS
+BEGIN
+UPDATE jobs
+SET job_title = p_job_title
+WHERE job_id = p_job_id;
+
+IF SQL%ROWCOUNT = 0 THEN
+  RAISE_APPLICATION_ERROR(-20001, 'Brak joba do aktualizacji');
+END IF;
+
+
+
+EXCEPTION
+  WHEN OTHERS THEN
+     DBMS_OUTPUT.PUT_LINE('Błąd update ' || SQLERRM);
+END;
+/
+
+EXEC update_job(100, 'test2');
+
+
+c)CREATE OR REPLACE PROCEDURE delete_job(
+p_job_id VARCHAR
+)
+IS
+BEGIN
+DELETE FROM jobs 
+WHERE job_id = p_job_id;
+
+IF SQL%ROWCOUNT = 0 THEN
+    RAISE_APPLICATION_ERROR(-20002, 'Brak joba do usunięcia');
+END IF;
+
+EXCEPTION
+  WHEN OTHERS THEN
+     DBMS_OUTPUT.PUT_LINE('Błąd delete ' || SQLERRM);
+END;
+/
+
+EXEC delete_job(100);
+
+
+d) CREATE OR REPLACE PROCEDURE get_data(
+p_id NUMBER,
+p_salary OUT NUMBER,
+p_last_name OUT VARCHAR
+)
+IS
+BEGIN
+SELECT salary, last_name 
+INTO p_salary, p_last_name
+FROM employees
+WHERE employee_id = p_id;
+
+EXCEPTION
+  WHEN OTHERS THEN
+     DBMS_OUTPUT.PUT_LINE('Błąd danych ' || SQLERRM);
+END;
+/
+
+DECLARE 
+v_salary NUMBER;
+v_last_name VARCHAR(100);
+BEGIN
+get_data(100, v_salary, v_last_name);
+DBMS_OUTPUT.PUT_LINE('Nazwisko: ' || v_last_name);
+DBMS_OUTPUT.PUT_LINE('Pensja: ' || v_salary);
+END;
+/
+
+e)
+CREATE SEQUENCE employees_seq
+START WITH 1000
+INCREMENT BY 1;
+
+CREATE OR REPLACE PROCEDURE add_employee(
+p_first_name VARCHAR,
+p_last_name VARCHAR,
+p_salary NUMBER
+)
+IS
+BEGIN
+IF p_salary > 20000 THEN
+  RAISE_APPLICATION_ERROR(-20003, 'Pensja > 20000');
+END IF;
+
+
+
+INSERT INTO employees (
+        employee_id,
+        first_name,
+        last_name,
+        email,
+        hire_date,
+        job_id,
+        salary
+    )
+    VALUES (
+        employees_seq.NEXTVAL,
+        p_first_name,
+        p_last_name,
+        LOWER(p_last_name) || '@gmail.com',
+        SYSDATE,
+        'IT_PROG',
+        p_salary
+    );
+
+EXCEPTION
+  WHEN OTHERS THEN
+     DBMS_OUTPUT.PUT_LINE('Błąd danych ' || SQLERRM);
+END;
+/
+
+EXEC add_employee('Ireneusz', 'Kopiec', 13000);
