@@ -1,0 +1,107 @@
+Funkcje:
+1) CREATE OR REPLACE FUNCTION get_job(id VARCHAR2)
+RETURN VARCHAR2 IS
+title VARCHAR(100);
+BEGIN
+SELECT job_title INTO title FROM jobs WHERE job_id = id;
+RETURN title;
+
+EXCEPTION 
+WHEN NO_DATA_FOUND THEN
+RAISE_APPLICATION_ERROR(-20001, 'Brak');
+END;
+/
+
+SELECT get_job('IT_PROG') FROM dual;
+SELECT get_job('cos') FROM dual;
+
+2) 
+CREATE OR REPLACE FUNCTION get_salary(id NUMBER)
+RETURN NUMBER IS
+p_salary NUMBER;
+p_commission NUMBER;
+BEGIN
+SELECT salary, NVL(commission_pct, 0) INTO p_salary, p_commission
+FROM employees WHERE employee_id = id;
+
+RETURN (p_salary * 12) + (p_salary * p_commission);
+
+EXCEPTION 
+WHEN NO_DATA_FOUND THEN
+RAISE_APPLICATION_ERROR(-20001, 'Brak pracownika');
+END;
+/
+
+SELECT get_salary(1) FROM dual;
+SELECT get_salary(10000000) FROM dual;
+
+3)
+CREATE OR REPLACE FUNCTION get_phone(phone VARCHAR2)
+RETURN VARCHAR2 IS
+p_phone VARCHAR(20);
+BEGIN
+IF phone IS NULL THEN 
+  RETURN NULL;
+END IF;
+
+IF phone LIKE '011.%' THEN
+p_phone := REGEXP_SUBSTR(phone, '[^.]+', 1, 2);
+RETURN REGEXP_REPLACE(phone, '^([^.]+)\.([^.]+)', '\1.(' || p_phone || ')');
+ELSE
+p_phone := REGEXP_SUBSTR(phone, '^[^.]+');
+RETURN REGEXP_REPLACE(phone, '^[^.]+', '(' || p_phone || ')');
+END IF;
+
+END;
+/
+
+SELECT get_phone('650.121.2004') FROM dual;
+SELECT get_phone('011.44.1334.429268') FROM dual;
+
+
+
+4)
+CREATE OR REPLACE FUNCTION format_str(text VARCHAR2)
+RETURN VARCHAR2 IS
+BEGIN
+
+RETURN UPPER(SUBSTR(text,1,1)) 
+|| LOWER(SUBSTR(text, 2, LENGTH(text)-2))
+|| UPPER(SUBSTR(text, -1));
+
+END;
+/
+
+SELECT format_str('abc') FROM dual;
+SELECT format_str('To jest Tekst') FROM dual;
+
+
+5)
+CREATE OR REPLACE FUNCTION pesel_to_date(pesel VARCHAR2)
+RETURN VARCHAR2 IS
+  year NUMBER;
+  month NUMBER;
+  day NUMBER;
+BEGIN
+
+year := TO_NUMBER(SUBSTR(pesel, 1,2));
+month := TO_NUMBER(SUBSTR(pesel, 3,2));
+day := TO_NUMBER(SUBSTR(pesel, 5,2));
+
+IF month > 20 THEN
+  year := year + 2000;
+  month := month - 20;
+ELSE
+  year := year + 1900;
+END IF;
+
+RETURN TO_CHAR(TO_DATE(year||'-'||month||'-'||day, 'YYYY-MM-DD'), 'YYYY-MM-DD');
+
+
+END;
+/
+
+SELECT pesel_to_date('12320305870') FROM dual;
+
+
+6) 
