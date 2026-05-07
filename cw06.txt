@@ -105,3 +105,483 @@ SELECT pesel_to_date('12320305870') FROM dual;
 
 
 6) 
+
+CREATE OR REPLACE FUNCTION kraj_info(kraj VARCHAR2)
+RETURN VARCHAR2 IS
+  liczba_pracownikow NUMBER;
+  liczba_departamentow NUMBER;
+  idx  countries.country_id%TYPE;
+BEGIN
+
+SELECT country_id INTO idx FROM countries WHERE country_name = kraj;
+
+SELECT COUNT(*) INTO liczba_departamentow FROM departments d
+JOIN locations l ON d.location_id = l.location_id 
+WHERE l.country_id = idx;
+
+SELECT COUNT(*) INTO liczba_pracownikow FROM employees e 
+JOIN departments d ON e.department_id = d.department_id
+JOIN locations l ON d.location_id = l.location_id 
+WHERE l.country_id = idx;
+
+RETURN 'Kraj: ' || kraj || 
+', liczba pracowników: ' || liczba_pracownikow ||
+', liczba departamentów: ' || liczba_departamentow;
+
+END;
+/
+
+SELECT kraj_info('United States of America') FROM dual;
+
+
+
+
+Wyzwalacze
+1)
+CREATE TABLE archiwum_departamentow(
+id NUMBER, nazwa VARCHAR(150), 
+data_zamkniecia DATE, ostatni_manager VARCHAR(50)
+);
+
+CREATE OR REPLACE TRIGGER arch_departments AFTER DELETE ON departments
+FOR EACH ROW
+DECLARE manager VARCHAR(100);
+BEGIN
+
+SELECT first_name || ' ' || last_name INTO manager FROM employees
+WHERE employee_id = :OLD.manager_id;
+
+INSERT INTO archiwum_departamentow 
+(id, nazwa, data_zamkniecia, ostatni_manager) 
+VALUES (:OLD.department_id, :OLD.department_name, SYSDATE, manager);
+
+EXCEPTION 
+WHEN NO_DATA_FOUND THEN
+INSERT INTO archiwum_departamentow 
+(id, nazwa, data_zamkniecia, ostatni_manager) 
+VALUES (:OLD.department_id, :OLD.department_name, 
+SYSDATE, 'Brak managera');
+
+END;
+/
+
+
+
+2)
+CREATE TABLE zlodziej(
+id NUMBER, uzytkownik VARCHAR(150), czas_zmiany DATE
+);
+
+CREATE OR REPLACE TRIGGER salary_control 
+BEFORE INSERT OR UPDATE OF salary ON employees
+FOR EACH ROW
+BEGIN
+
+IF :NEW.salary < 2000 OR :NEW.salary > 26000 THEN
+
+INSERT INTO zlodziej(uzytkownik, czas_zmiany) VALUES (USER, SYSDATE);
+
+RAISE_APPLICATION_ERROR(-200001, 'Pensja poza zakresem');
+
+END IF;
+
+END;
+/
+
+
+3)
+CREATE SEQUENCE seq_employees START WITH 1000 INCREMENT BY 1;
+
+CREATE OR REPLACE TRIGGER emp_autoicrement 
+BEFORE INSERT ON employees
+FOR EACH ROW
+BEGIN
+
+IF :NEW.employee_id IS NULL THEN
+:NEW.employee_id := seq_employees.NEXTVAL;
+END IF;
+
+END;
+/
+
+
+
+4)
+CREATE OR REPLACE TRIGGER bloack_job_grades 
+BEFORE INSERT OR UPDATE OR DELETE ON job_grades
+FOR EACH ROW
+BEGIN
+
+RAISE_APPLICATION_ERROR(-20001, 'nie mozesz');
+
+END;
+/
+
+
+
+5)
+CREATE OR REPLACE TRIGGER keep_salary 
+BEFORE UPDATE OF min_salary, max_salary ON jobs
+FOR EACH ROW
+BEGIN
+
+:NEW.min_salary := :OLD.min_salary;
+:NEW.max_salary := :OLD.max_salary;
+
+END;
+/
+
+
+
+Paczki: 
+
+1)
+CREATE OR REPLACE PACKAGE hr_package AS
+
+    FUNCTION get_job(id VARCHAR2)
+    RETURN VARCHAR2;
+
+    FUNCTION get_salary(id NUMBER)
+    RETURN NUMBER;
+
+    FUNCTION get_phone(phone VARCHAR2)
+    RETURN VARCHAR2;
+
+    FUNCTION format_str(text VARCHAR2)
+    RETURN VARCHAR2;
+
+    FUNCTION pesel_to_date(pesel VARCHAR2)
+    RETURN VARCHAR2;
+
+    FUNCTION kraj_info(kraj VARCHAR2)
+    RETURN VARCHAR2;
+
+END hr_package;
+/
+
+CREATE OR REPLACE PACKAGE BODY hr_package AS
+
+
+FUNCTION get_job(id VARCHAR2)
+RETURN VARCHAR2 IS
+
+    title VARCHAR2(100);
+
+BEGIN
+
+    SELECT job_title
+    INTO title
+    FROM jobs
+    WHERE job_id = id;
+
+    RETURN title;
+
+EXCEPTION
+    WHEN NO_DATA_FOUND THEN
+        RAISE_APPLICATION_ERROR(-20001, 'Brak');
+
+END;
+
+
+FUNCTION get_salary(id NUMBER)
+RETURN NUMBER IS
+
+    p_salary NUMBER;
+    p_commission NUMBER;
+
+BEGIN
+
+    SELECT salary, NVL(commission_pct, 0)
+    INTO p_salary, p_commission
+    FROM employees
+    WHERE employee_id = id;
+
+    RETURN (p_salary * 12) + (p_salary * p_commission);
+
+EXCEPTION
+    WHEN NO_DATA_FOUND THEN
+        RAISE_APPLICATION_ERROR(-20002, 'Brak pracownika');
+
+END;
+
+
+FUNCTION get_phone(phone VARCHAR2)
+RETURN VARCHAR2 IS
+
+    p_phone VARCHAR2(20);
+
+BEGIN
+
+    IF phone IS NULL THEN
+        RETURN NULL;
+    END IF;
+
+    IF phone LIKE '011.%' THEN
+
+        p_phone := REGEXP_SUBSTR(phone, '[^.]+', 1, 2);
+
+        RETURN REGEXP_REPLACE(
+            phone,
+            '^([^.]+)\.([^.]+)',
+            '\1.(' || p_phone || ')'
+        );
+
+    ELSE
+
+        p_phone := REGEXP_SUBSTR(phone, '^[^.]+');
+
+        RETURN REGEXP_REPLACE(
+            phone,
+            '^[^.]+',
+            '(' || p_phone || ')'
+        );
+
+    END IF;
+
+END;
+
+
+FUNCTION format_str(text VARCHAR2)
+RETURN VARCHAR2 IS
+
+BEGIN
+
+    RETURN UPPER(SUBSTR(text,1,1))
+           || LOWER(SUBSTR(text,2,LENGTH(text)-2))
+           || UPPER(SUBSTR(text,-1));
+
+END;
+
+
+FUNCTION pesel_to_date(pesel VARCHAR2)
+RETURN VARCHAR2 IS
+
+    year_number NUMBER;
+    month_number NUMBER;
+    day_number NUMBER;
+
+BEGIN
+
+    year_number := TO_NUMBER(SUBSTR(pesel,1,2));
+    month_number := TO_NUMBER(SUBSTR(pesel,3,2));
+    day_number := TO_NUMBER(SUBSTR(pesel,5,2));
+
+    IF month_number > 20 THEN
+        year_number := year_number + 2000;
+        month_number := month_number - 20;
+    ELSE
+        year_number := year_number + 1900;
+    END IF;
+
+    RETURN TO_CHAR(
+        TO_DATE(
+            year_number || '-' ||
+            month_number || '-' ||
+            day_number,
+            'YYYY-MM-DD'
+        ),
+        'YYYY-MM-DD'
+    );
+
+END;
+
+FUNCTION kraj_info(kraj VARCHAR2)
+RETURN VARCHAR2 IS
+
+    liczba_pracownikow NUMBER;
+    liczba_departamentow NUMBER;
+    idx countries.country_id%TYPE;
+
+BEGIN
+
+    SELECT country_id
+    INTO idx
+    FROM countries
+    WHERE country_name = kraj;
+
+    SELECT COUNT(*)
+    INTO liczba_departamentow
+    FROM departments d
+    JOIN locations l
+        ON d.location_id = l.location_id
+    WHERE l.country_id = idx;
+
+    SELECT COUNT(*)
+    INTO liczba_pracownikow
+    FROM employees e
+    JOIN departments d
+        ON e.department_id = d.department_id
+    JOIN locations l
+        ON d.location_id = l.location_id
+    WHERE l.country_id = idx;
+
+    RETURN 'Kraj: ' || kraj ||
+           ', liczba pracowników: ' || liczba_pracownikow ||
+           ', liczba departamentów: ' || liczba_departamentow;
+
+END;
+
+END hr_package;
+/
+
+SELECT hr_package.get_job('IT_PROG')
+FROM dual;
+
+SELECT hr_package.get_salary(100)
+FROM dual;
+
+SELECT hr_package.get_phone('650.121.2004')
+FROM dual;
+
+SELECT hr_package.format_str('abcdef')
+FROM dual;
+
+SELECT hr_package.pesel_to_date('12320305870')
+FROM dual;
+
+SELECT hr_package.kraj_info('United States of America')
+FROM dual;
+
+
+
+2)
+
+CREATE OR REPLACE PACKAGE regions_package AS
+
+    PROCEDURE add_region(
+        p_id NUMBER,
+        p_name VARCHAR2
+    );
+
+    PROCEDURE update_region(
+        p_id NUMBER,
+        p_name VARCHAR2
+    );
+
+    PROCEDURE delete_region(
+        p_id NUMBER
+    );
+
+    FUNCTION get_region_by_id(
+        p_id NUMBER
+    )
+    RETURN VARCHAR2;
+
+    FUNCTION get_region_by_name(
+        p_name VARCHAR2
+    )
+    RETURN VARCHAR2;
+
+END regions_package;
+/
+
+CREATE OR REPLACE PACKAGE BODY regions_package AS
+
+
+PROCEDURE add_region(
+    p_id NUMBER,
+    p_name VARCHAR2
+)
+IS
+BEGIN
+
+    INSERT INTO regions(region_id, region_name)
+    VALUES (p_id, p_name);
+
+END;
+
+
+PROCEDURE update_region(
+    p_id NUMBER,
+    p_name VARCHAR2
+)
+IS
+BEGIN
+
+    UPDATE regions
+    SET region_name = p_name
+    WHERE region_id = p_id;
+
+END;
+
+
+PROCEDURE delete_region(
+    p_id NUMBER
+)
+IS
+BEGIN
+
+    DELETE FROM regions
+    WHERE region_id = p_id;
+
+END;
+
+FUNCTION get_region_by_id(
+    p_id NUMBER
+)
+RETURN VARCHAR2
+IS
+
+    p_region VARCHAR2(100);
+
+BEGIN
+
+    SELECT region_name
+    INTO p_region
+    FROM regions
+    WHERE region_id = p_id;
+
+    RETURN p_region;
+
+EXCEPTION
+    WHEN NO_DATA_FOUND THEN
+        RETURN 'Brak regionu';
+
+END;
+
+FUNCTION get_region_by_name(
+    p_name VARCHAR2
+)
+RETURN VARCHAR2
+IS
+
+    p_region VARCHAR2(100);
+
+BEGIN
+
+    SELECT region_name
+    INTO p_region
+    FROM regions
+    WHERE LOWER(region_name) = LOWER(p_name);
+
+    RETURN p_region;
+
+EXCEPTION
+    WHEN NO_DATA_FOUND THEN
+        RETURN 'Brak regionu';
+
+END;
+
+END regions_package;
+/
+
+
+BEGIN
+    regions_package.add_region(10, 'TEST');
+END;
+/
+
+SELECT regions_package.get_region_by_id(10)
+FROM dual;
+
+BEGIN
+    regions_package.update_region(10, 'NOWY_TEST');
+END;
+/
+
+BEGIN
+    regions_package.delete_region(10);
+END;
+/
+
+
